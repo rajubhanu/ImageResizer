@@ -88,8 +88,10 @@ def index():
                         if size > MAX_SIZE_BYTES:
                             return f"File '{file.filename}' is too large! Limit: 4.5MB"
 
-                        img = Image.open(file)
+                        img = Image.open(file).convert("RGB") if format_option == "JPG" else Image.open(file)
                         img = img.resize((width, height))
+                        
+
 
                         output_io = io.BytesIO()
                         save_name = os.path.splitext(file.filename)[0] + "." + format_option.lower()
