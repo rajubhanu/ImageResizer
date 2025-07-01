@@ -97,6 +97,12 @@ window.addEventListener("load", () => {
     historyList.innerHTML = history.map(name => `<li>${name}</li>`).join("");
 });
 </script>
+<div style="text-align:center; padding: 15px; color: gray;">
+  <small>🛠️ Developed by <b style="color:green;">B.Raju</b></small>
+</div>
+</body>
+</html>
+
 </body>
 </html>"""
 
