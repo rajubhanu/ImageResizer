@@ -1,6 +1,5 @@
 from flask import Flask, render_template_string, request, send_file
 from PIL import Image
-from pdf2image import convert_from_bytes
 import io, os, zipfile
 
 app = Flask(__name__)
@@ -40,9 +39,9 @@ html = """<!DOCTYPE html>
 </head>
 <body>
 <div class="box">
-    <h2>Resize Your Images & PDFs</h2>
+    <h2>Resize Your Images</h2>
     <form method="POST" enctype="multipart/form-data" id="resizeForm">
-        <div class="drop-area" id="drop-area">📥 Drag & Drop Images or PDFs or Click to Upload</div>
+        <div class="drop-area" id="drop-area">📥 Drag & Drop Images or Click to Upload</div>
         <input type="file" id="fileInput" name="images" multiple style="display:none;" required><br>
         <div class="preview" id="preview"></div>
         <input type="number" name="width" placeholder="Width (px)" required value="250"><br>
@@ -51,7 +50,6 @@ html = """<!DOCTYPE html>
             <option value="jpg">JPG</option>
             <option value="png">PNG</option>
         </select><br>
-        <label><input type="checkbox" name="convert_to_pdf"> 🗎 Also generate PDF from images</label><br>
         <button type="submit">Resize & Download ZIP</button>
     </form>
 
@@ -110,12 +108,9 @@ def index():
             height = int(request.form.get("height", 250))
             fmt = request.form.get("format", "jpg").upper()
             pillow_fmt = "JPEG" if fmt == "JPG" else fmt
-            convert_to_pdf = request.form.get("convert_to_pdf")
 
             files = request.files.getlist("images")
             zip_buffer = io.BytesIO()
-            pdf_images = []
-
             with zipfile.ZipFile(zip_buffer, "w") as zipf:
                 for file in files:
                     file.seek(0, os.SEEK_END)
@@ -123,42 +118,19 @@ def index():
                         return f"❌ File too large: {file.filename} (limit: 4.5MB)"
                     file.seek(0)
 
-                    ext = file.filename.lower().split('.')[-1]
+                    img = Image.open(file)
+                    if pillow_fmt == "JPEG":
+                        img = img.convert("RGB")
+                    img = img.resize((width, height))
 
-                    if ext == "pdf":
-                        pdf_pages = convert_from_bytes(file.read())
-                        for i, page in enumerate(pdf_pages):
-                            page = page.resize((width, height))
-                            if pillow_fmt == "JPEG":
-                                page = page.convert("RGB")
-                            output = io.BytesIO()
-                            filename = f"{os.path.splitext(file.filename)[0]}_page{i+1}.{fmt.lower()}"
-                            page.save(output, format=pillow_fmt)
-                            output.seek(0)
-                            zipf.writestr(filename, output.read())
-                    else:
-                        img = Image.open(file)
-                        if pillow_fmt == "JPEG":
-                            img = img.convert("RGB")
-                        img = img.resize((width, height))
-
-                        output = io.BytesIO()
-                        filename = os.path.splitext(file.filename)[0] + "." + fmt.lower()
-                        img.save(output, format=pillow_fmt)
-                        output.seek(0)
-                        zipf.writestr(filename, output.read())
-
-                        if convert_to_pdf:
-                            pdf_images.append(img)
-
-                if convert_to_pdf and pdf_images:
-                    pdf_buffer = io.BytesIO()
-                    pdf_images[0].save(pdf_buffer, format="PDF", save_all=True, append_images=pdf_images[1:])
-                    pdf_buffer.seek(0)
-                    zipf.writestr("converted_images.pdf", pdf_buffer.read())
+                    output = io.BytesIO()
+                    filename = os.path.splitext(file.filename)[0] + "." + fmt.lower()
+                    img.save(output, format=pillow_fmt)
+                    output.seek(0)
+                    zipf.writestr(filename, output.read())
 
             zip_buffer.seek(0)
-            return send_file(zip_buffer, download_name="resized_output.zip", as_attachment=True)
+            return send_file(zip_buffer, download_name="resized_images.zip", as_attachment=True)
         except Exception as e:
             return f"Internal Error: {e}"
     return render_template_string(html)
