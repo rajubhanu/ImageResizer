@@ -93,7 +93,9 @@ def index():
 
                         output_io = io.BytesIO()
                         save_name = os.path.splitext(file.filename)[0] + "." + format_option.lower()
-                        img.save(output_io, format=format_option)
+                        pillow_format = "JPEG" if format_option == "JPG" else format_option
+                        img.save(output_io, format=pillow_format)
+
                         output_io.seek(0)
 
                         zipf.writestr(save_name, output_io.read())
